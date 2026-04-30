@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "848747041727",
+    "project_id": "falldetection-af1e1",
+    "storage_bucket": "falldetection-af1e1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:848747041727:android:df929d19783e4e9557070a",
+        "android_client_info": {
+          "package_name": "com.example.fall_detection"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "848747041727-sj3cdutun6k8925fad180422dreunb45.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.fall_detection",
+            "certificate_hash": "e957f220ee8942ec27858b6e020e19c002ee1bdb"
+          }
+        },
+        {
+          "client_id": "848747041727-245h61qjngorsai7mj01073nu43bov4h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjp2Rvsjf_81h3XDl3v9pOeSS-ttgiezo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "848747041727-245h61qjngorsai7mj01073nu43bov4h.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "848747041727-tldtqo7r82v0kdjc1bo36ecnvlfdjaie.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fallDetection"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
