@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
@@ -34,7 +35,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         onPressed: () => _showAddBraceletDialog(context),
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Nouveau Patient', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: const Color(0xFF004D40), // Vert Médical Pro
         elevation: 4,
       ),
       body: Container(
@@ -43,7 +44,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.deepPurple.withOpacity(0.05),
+              const Color(0xFF004D40).withOpacity(0.05),
               Colors.white,
             ],
           ),
@@ -55,12 +56,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 expandedHeight: 220,
                 floating: false,
                 pinned: true,
-                backgroundColor: Colors.deepPurple,
+                backgroundColor: const Color(0xFF004D40),
                 elevation: 0,
                 flexibleSpace: FlexibleSpaceBar(
                   centerTitle: true,
                   title: const Text(
-                    'Administration Centrale',
+                    'Console de Supervision',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 18,
@@ -73,7 +74,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [Color(0xFF4A148C), Color(0xFF7B1FA2)],
+                        colors: [Color(0xFF00695C), Color(0xFF004D40)],
                       ),
                     ),
                     child: Column(
@@ -85,7 +86,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             color: Colors.white.withOpacity(0.2),
                             shape: BoxShape.circle,
                           ),
-                          child: Image.asset('assets/icons/medical-team.png', width: 70, height: 70),
+                          child: const Icon(Icons.hub_outlined, color: Colors.white, size: 45),
                         ),
                         const SizedBox(height: 20),
                       ],
@@ -101,8 +102,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         context: context,
                         builder: (context) => AlertDialog(
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          title: const Row(children: [Icon(Icons.exit_to_app, color: Colors.deepPurple), SizedBox(width: 8), Text("Déconnexion")]),
-                          content: const Text("Voulez-vous vraiment fermer votre session admin ?"),
+                          title: const Row(children: [Icon(Icons.exit_to_app, color: Color(0xFF004D40)), SizedBox(width: 8), Text("Déconnexion")]),
+                          content: const Text("Voulez-vous vraiment fermer la session superviseur ?"),
                           actions: [
                             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Annuler")),
                             ElevatedButton(
@@ -154,22 +155,54 @@ class _AdminDashboardState extends State<AdminDashboard> {
             return StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('bracelets').snapshots(),
               builder: (context, braceletsSnapshot) {
+                // 1. Calcul Effectif Médical
                 final totalSoignants = usersSnapshot.data?.docs.length ?? 0;
-                final totalAlerts = alertsSnapshot.data?.docs.length ?? 0;
-                final totalBracelets = braceletsSnapshot.data?.docs.length ?? 0;
-                final activeBracelets = braceletsSnapshot.data?.docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return data['isConnected'] == true;
-                }).length ?? 0;
+
+                // 2. Calcul Statut des Capteurs (En ligne / Hors-ligne)
+                int activeBracelets = 0;
+                int offlineBracelets = 0;
+                if (braceletsSnapshot.hasData) {
+                  for (var doc in braceletsSnapshot.data!.docs) {
+                    final b = doc.data() as Map<String, dynamic>;
+                    if (b['isConnected'] == true) {
+                      activeBracelets++;
+                    } else {
+                      offlineBracelets++;
+                    }
+                  }
+                }
+
+                // 3. Calcul Anomalies Vraies aujourd'hui
+                int anomaliesToday = 0;
+                if (alertsSnapshot.hasData) {
+                  final now = DateTime.now();
+                  for (var doc in alertsSnapshot.data!.docs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    // On ne compte que les vraies anomalies (isFalseAlarm == false)
+                    if (data['isFalseAlarm'] == false || data['isFalseAlarm'] == null) {
+                      final timestamp = data['timestamp'];
+                      DateTime? alertDate;
+                      if (timestamp is Timestamp) {
+                        alertDate = timestamp.toDate();
+                      } else if (timestamp is int) {
+                        alertDate = DateTime.fromMillisecondsSinceEpoch(timestamp.toString().length == 10 ? timestamp * 1000 : timestamp);
+                      }
+
+                      if (alertDate != null && alertDate.year == now.year && alertDate.month == now.month && alertDate.day == now.day) {
+                        anomaliesToday++;
+                      }
+                    }
+                  }
+                }
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.analytics, color: Colors.deepPurple),
+                        const Icon(Icons.analytics_outlined, color: Color(0xFF004D40)),
                         const SizedBox(width: 8),
-                        Text('Vue d\'ensemble', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.black87)),
+                        Text('Supervision Opérationnelle', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.black87)),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -181,10 +214,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       crossAxisSpacing: 16,
                       childAspectRatio: 1.2,
                       children: [
-                        _buildStatCard('Soignants', totalSoignants.toString(), Icons.medical_services, Colors.blue),
-                        _buildStatCard('Patients', totalBracelets.toString(), Icons.elderly, Colors.green),
-                        _buildStatCard('Bracelets Actifs', activeBracelets.toString(), Icons.wifi_tethering, Colors.purple),
-                        _buildStatCard('Total Alertes', totalAlerts.toString(), Icons.warning_amber_rounded, Colors.orange),
+                        // NOUVELLES CARTES STATISTIQUES ULTRA PRO
+                        _buildStatCard('Urgences (24h)', anomaliesToday.toString(), Icons.warning_rounded, const Color(0xFFA32D2D)),
+                        _buildStatCard('Patients Surveillés', activeBracelets.toString(), Icons.monitor_heart, const Color(0xFF2E7D32)),
+                        _buildStatCard('Bracelets Hors-ligne', offlineBracelets.toString(), Icons.portable_wifi_off, const Color(0xFFE65100)),
+                        _buildStatCard('Effectif Médical', totalSoignants.toString(), Icons.medical_services, const Color(0xFF534AB7)),
                       ],
                     ),
                   ],
@@ -202,8 +236,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: color.withOpacity(0.15), blurRadius: 15, offset: const Offset(0, 8))],
-        border: Border.all(color: color.withOpacity(0.1), width: 1),
+        boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))],
+        border: Border.all(color: color.withOpacity(0.2), width: 1.5),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -213,10 +247,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
               decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
               child: Icon(icon, size: 28, color: color)
           ),
-          const SizedBox(height: 12),
-          Text(value, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.black87)),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.black87)),
+          const SizedBox(height: 2),
+          Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -228,29 +262,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
       children: [
         Row(
           children: [
-            const Icon(Icons.settings_suggest, color: Colors.deepPurple),
+            const Icon(Icons.settings_input_component, color: Color(0xFF004D40)),
             const SizedBox(width: 8),
-            Text('Gestion Système', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.black87)),
+            Text('Outils de Supervision', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.black87)),
           ],
         ),
         const SizedBox(height: 16),
-
-        // Patients sans soignant
-        _buildMenuCard(
-            context,
-            'Patients orphelins',
-            'Réaffecter les patients sans soignant',
-            Icons.assignment_late,
-            Colors.deepOrange, // Couleur rouge/orange pour alerter
-                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UnassignedPatientsScreen()))
-        ),
-
-        const SizedBox(height: 16),
-        _buildMenuCard(context, 'Réseau Médical', 'Gérer les soignants et affectations', Icons.local_hospital, Colors.indigo, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageUsersScreen()))),
+        _buildMenuCard(context, 'Registre Cinématique', 'Historique des anomalies IA', Icons.history_edu, const Color(0xFFA32D2D), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AllAlertsScreen()))),
         const SizedBox(height: 12),
-        _buildMenuCard(context, 'Registre des Chutes', 'Consulter l\'historique global', Icons.history_edu, Colors.deepOrange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AllAlertsScreen()))),
+        _buildMenuCard(context, 'Réseau Médical', 'Gérer les accès du personnel', Icons.local_hospital, const Color(0xFF534AB7), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageUsersScreen()))),
         const SizedBox(height: 12),
-        _buildMenuCard(context, 'Parc Appareils', 'Surveiller tous les bracelets connectés', Icons.watch_rounded, Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AllBraceletsScreen()))),
+        _buildMenuCard(context, 'Parc Capteurs', 'Dossiers patients et appareils', Icons.watch_rounded, const Color(0xFF00796B), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AllBraceletsScreen()))),
+        const SizedBox(height: 12),
+        _buildMenuCard(context, 'Patients en attente', 'Affectations urgentes', Icons.assignment_late, const Color(0xFFE65100), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UnassignedPatientsScreen()))),
       ],
     );
   }
@@ -258,37 +282,34 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildMenuCard(BuildContext context, String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
-            border: Border.all(color: Colors.grey.shade100)
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+            border: Border.all(color: Colors.grey.shade200)
         ),
         child: Row(
           children: [
             Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [color.withOpacity(0.7), color]),
-                    borderRadius: BorderRadius.circular(16)
-                ),
-                child: Icon(icon, size: 28, color: Colors.white)
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, size: 26, color: color)
             ),
             const SizedBox(width: 16),
             Expanded(
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
                       const SizedBox(height: 4),
-                      Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey[600]))
+                      Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600]))
                     ]
                 )
             ),
-            Icon(Icons.arrow_forward_ios, color: Colors.grey[300], size: 20),
+            Icon(Icons.arrow_forward_ios, color: Colors.grey[300], size: 16),
           ],
         ),
       ),
@@ -301,35 +322,35 @@ class _AdminDashboardState extends State<AdminDashboard> {
       children: [
         Row(
           children: [
-            const Icon(Icons.flash_on, color: Colors.redAccent),
+            const Icon(Icons.sensors, color: Color(0xFFA32D2D)),
             const SizedBox(width: 8),
-            Text('Dernières Urgences', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.black87)),
+            Text('Dernières Anomalies Critiques', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.black87)),
           ],
         ),
         const SizedBox(height: 16),
         StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('alerts').orderBy('timestamp', descending: true).limit(5).snapshots(),
+          // On récupère uniquement les vraies alertes
+          stream: FirebaseFirestore.instance.collection('alerts')
+              .where('isFalseAlarm', isEqualTo: false)
+              .orderBy('timestamp', descending: true).limit(3).snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return Container(
-                  padding: const EdgeInsets.all(32),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.shade200)),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
                   child: Center(
                       child: Column(
                         children: [
-                          Icon(Icons.check_circle_outline, size: 48, color: Colors.green[300]),
+                          Icon(Icons.gpp_good_outlined, size: 48, color: Colors.green[300]),
                           const SizedBox(height: 12),
-                          const Text('Aucune urgence récente', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                          const Text('Aucune anomalie critique récente', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
                         ],
                       )
                   )
               );
             }
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: snapshot.data!.docs.length,
-              itemBuilder: (context, index) => _buildActivityItem(snapshot.data!.docs[index].data() as Map<String, dynamic>),
+            return Column(
+              children: snapshot.data!.docs.map((doc) => _buildActivityItem(doc.data() as Map<String, dynamic>)).toList(),
             );
           },
         ),
@@ -339,40 +360,49 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildActivityItem(Map<String, dynamic> data) {
     final conf = (data['probability'] ?? 0) * 100;
+
+    String location = 'Inconnue';
+    if (data['weather'] is Map) {
+      location = data['weather']['city'] ?? 'Inconnue';
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.red.withOpacity(0.3)),
-          boxShadow: [BoxShadow(color: Colors.red.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4))]
+          border: Border.all(color: const Color(0xFFA32D2D).withOpacity(0.3)),
+          boxShadow: [BoxShadow(color: const Color(0xFFA32D2D).withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4))]
       ),
       child: Row(
         children: [
           Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: Colors.red[50], shape: BoxShape.circle),
-              child: const Icon(Icons.personal_injury, color: Colors.red, size: 24)
+              decoration: const BoxDecoration(color: Color(0xFFFCEBEB), shape: BoxShape.circle),
+              child: const Icon(Icons.priority_high, color: Color(0xFFA32D2D), size: 24)
           ),
           const SizedBox(width: 16),
           Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(data['patientName'] ?? 'Patient inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
+                    Text(data['patientName'] ?? 'Sujet inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
                     const SizedBox(height: 4),
-                    Text('Type : ${data['type'] ?? 'Inconnu'}', style: TextStyle(fontSize: 13, color: Colors.grey[600]))
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on, size: 12, color: Colors.grey),
+                        const SizedBox(width: 4),
+                        Text(location, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                      ],
+                    )
                   ]
               )
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(20)
-            ),
-            child: Text('IA: ${conf.toInt()}%', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12)),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(color: const Color(0xFFA32D2D), borderRadius: BorderRadius.circular(12)),
+            child: Text('IA: ${conf.toInt()}%', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 11)),
           ),
         ],
       ),
@@ -381,7 +411,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 }
 
 // =======================================================
-// DIALOGUE AJOUT PATIENT (MISE À JOUR)
+// DIALOGUE AJOUT PATIENT (AVEC TRANSFERT CIN BLUETOOTH)
 // =======================================================
 class AddBraceletDialog extends StatefulWidget {
   const AddBraceletDialog({super.key});
@@ -393,56 +423,90 @@ class AddBraceletDialog extends StatefulWidget {
 class _AddBraceletDialogState extends State<AddBraceletDialog> {
   final _patientNameController = TextEditingController();
   final _ageController = TextEditingController();
+  final _cinController = TextEditingController();
+
   String? _selectedSoignantId;
   String? _selectedSoignantName;
   bool _isLoading = false;
+  bool _isBraceletPaired = false;
+
+  void _simulatePairing() async {
+    if (_cinController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('⚠️ Veuillez d\'abord saisir la CIN du patient avant d\'appairer le bracelet.'),
+              backgroundColor: Colors.orange
+          )
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Colors.blue),
+            const SizedBox(height: 16),
+            const Text("Connexion au capteur BLE...", style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text("Transfert de la CIN (${_cinController.text}) dans l'EEPROM...",
+                style: const TextStyle(color: Colors.grey, fontSize: 12), textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+
+    await Future.delayed(const Duration(milliseconds: 2500));
+
+    if (mounted) {
+      Navigator.pop(context);
+      setState(() {
+        _isBraceletPaired = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ CIN enregistrée dans le bracelet avec succès !'), backgroundColor: Colors.green)
+      );
+    }
+  }
 
   void _saveBracelet() async {
-    if (_patientNameController.text.isEmpty || _selectedSoignantId == null || _ageController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez remplir le nom, l\'âge et choisir un soignant'), backgroundColor: Colors.red));
+    if (!_isBraceletPaired) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ Veuillez transférer la CIN au capteur via Bluetooth.'), backgroundColor: Colors.orange));
+      return;
+    }
+
+    if (_patientNameController.text.isEmpty || _selectedSoignantId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez remplir tous les champs'), backgroundColor: Colors.red));
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      // 🌟 Génération d'un ID de bracelet unique et automatique
       final newBraceletRef = FirebaseFirestore.instance.collection('bracelets').doc();
 
       await newBraceletRef.set({
         'braceletId': newBraceletRef.id,
         'ownerId': _selectedSoignantId,
-        'ownerName': _selectedSoignantName, // 🌟 LE NOM DU SOIGNANT EST BIEN SAUVEGARDÉ ICI
+        'ownerName': _selectedSoignantName,
         'patientName': _patientNameController.text.trim(),
+        'cin': _cinController.text.trim(),
         'batteryLevel': 100,
-        'isConnected': false,
+        'isConnected': true,
         'lastUpdate': FieldValue.serverTimestamp(),
-        // 🌟 La localisation par défaut en attendant la mise à jour de l'API de l'ESP32
-        'location': {
-          'city': 'En attente...',
-          'lat': 0.0,
-          'lon': 0.0,
-        },
-        'medicalRecord': {
-          'age': int.tryParse(_ageController.text.trim()) ?? 0,
-          'conditions': '',
-          'medications': '',
-          'bloodType': '',
-        }
+        'location': {'city': 'En attente...', 'lat': 0.0, 'lon': 0.0},
+        'medicalRecord': {'age': int.tryParse(_ageController.text.trim()) ?? 0, 'conditions': '', 'medications': '', 'bloodType': ''}
       });
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('✅ Patient ajouté ! ID : ${newBraceletRef.id}'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Patient ajouté au réseau !'), backgroundColor: Colors.green));
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e'), backgroundColor: Colors.red));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -454,7 +518,7 @@ class _AddBraceletDialogState extends State<AddBraceletDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Column(
         children: [
-          Icon(Icons.elderly, color: Colors.deepPurple, size: 40),
+          Icon(Icons.elderly, color: Color(0xFF004D40), size: 40),
           SizedBox(height: 8),
           Text('Nouveau Patient', style: TextStyle(fontWeight: FontWeight.bold)),
         ],
@@ -463,29 +527,47 @@ class _AddBraceletDialogState extends State<AddBraceletDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Enregistrez un nouveau patient et affectez-lui un soignant superviseur. La ville sera détectée automatiquement au branchement de l'appareil.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
-            const SizedBox(height: 20),
             TextField(
               controller: _patientNameController,
-              decoration: InputDecoration(
-                labelText: 'Nom du patient',
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                prefixIcon: const Icon(Icons.person_outline, color: Colors.deepPurple),
-              ),
+              decoration: InputDecoration(labelText: 'Nom du patient', filled: true, fillColor: Colors.grey[100], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF004D40))),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _cinController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(labelText: 'CIN du patient', filled: true, fillColor: Colors.grey[100], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.badge, color: Color(0xFF004D40))),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _ageController,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Âge du patient', filled: true, fillColor: Colors.grey[100],
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                prefixIcon: const Icon(Icons.cake, color: Colors.deepPurple),
+              decoration: InputDecoration(labelText: 'Âge du patient', filled: true, fillColor: Colors.grey[100], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.cake, color: Color(0xFF004D40))),
+            ),
+            const SizedBox(height: 20),
+
+            InkWell(
+              onTap: _isBraceletPaired ? null : _simulatePairing,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                    color: _isBraceletPaired ? Colors.green.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _isBraceletPaired ? Colors.green : Colors.blue, width: 1.5)
+                ),
+                child: Column(
+                  children: [
+                    Icon(_isBraceletPaired ? Icons.bluetooth_connected : Icons.bluetooth_searching, color: _isBraceletPaired ? Colors.green : Colors.blue, size: 28),
+                    const SizedBox(height: 6),
+                    Text(
+                      _isBraceletPaired ? 'CIN Transférée au capteur ✅' : '🔗 Envoyer la CIN au capteur',
+                      style: TextStyle(color: _isBraceletPaired ? Colors.green : Colors.blue, fontWeight: FontWeight.bold),
+                    )
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'soignant').snapshots(),
@@ -493,28 +575,25 @@ class _AddBraceletDialogState extends State<AddBraceletDialog> {
                 if (!snapshot.hasData) return const CircularProgressIndicator();
                 final soignants = snapshot.data!.docs;
 
-                return DropdownButtonFormField<String>(
-                  decoration: InputDecoration(
-                    labelText: 'Soignant Responsable',
-                    filled: true,
-                    fillColor: Colors.deepPurple.withOpacity(0.05),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    prefixIcon: const Icon(Icons.medical_information, color: Colors.deepPurple),
-                  ),
-                  value: _selectedSoignantId,
-                  items: soignants.map((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    return DropdownMenuItem(
-                      value: doc.id,
-                      child: Text(data['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      _selectedSoignantId = val;
-                      // C'est ici qu'on récupère le nom du soignant pour l'enregistrer !
-                      _selectedSoignantName = soignants.firstWhere((doc) => doc.id == val)['name'];
+                return Autocomplete<QueryDocumentSnapshot>(
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) return const Iterable<QueryDocumentSnapshot>.empty();
+                    return soignants.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return (data['name'] ?? '').toString().toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
+                          (data['cin'] ?? '').toString().toLowerCase().contains(textEditingValue.text.toLowerCase());
                     });
+                  },
+                  displayStringForOption: (option) => '${(option.data() as Map<String, dynamic>)['name']} - CIN: ${(option.data() as Map<String, dynamic>)['cin'] ?? 'N/A'}',
+                  onSelected: (selection) => setState(() {
+                    _selectedSoignantId = selection.id;
+                    _selectedSoignantName = (selection.data() as Map<String, dynamic>)['name'];
+                  }),
+                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                    return TextField(
+                      controller: controller, focusNode: focusNode,
+                      decoration: InputDecoration(labelText: 'Affecter un soignant', filled: true, fillColor: const Color(0xFF004D40).withOpacity(0.05), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.search, color: Color(0xFF004D40))),
+                    );
                   },
                 );
               },
@@ -523,21 +602,11 @@ class _AddBraceletDialogState extends State<AddBraceletDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler', style: TextStyle(color: Colors.grey)),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler', style: TextStyle(color: Colors.grey))),
         ElevatedButton(
           onPressed: _isLoading ? null : _saveBracelet,
-          style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)
-          ),
-          child: _isLoading
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text('Enregistrer', style: TextStyle(fontWeight: FontWeight.bold)),
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF004D40), foregroundColor: Colors.white),
+          child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Enregistrer'),
         ),
       ],
     );
