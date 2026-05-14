@@ -13,10 +13,13 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+
   final _nameController = TextEditingController();
+  final _cinController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
   final _authService = AuthService();
 
   bool _isLoading = false;
@@ -38,6 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         name: _nameController.text.trim(),
+        cin: _cinController.text.trim(),
         role: UserRole.soignant,
       );
 
@@ -89,7 +93,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
-                // Bouton retour
                 Align(
                   alignment: Alignment.topLeft,
                   child: IconButton(
@@ -97,9 +100,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
+
                 const SizedBox(height: 16),
 
-                // Logo
                 FadeInDown(
                   duration: const Duration(milliseconds: 800),
                   child: Container(
@@ -122,9 +125,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 32),
 
-                // Titre
                 FadeInDown(
                   delay: const Duration(milliseconds: 200),
                   child: Text(
@@ -135,7 +138,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 8),
+
                 FadeInDown(
                   delay: const Duration(milliseconds: 300),
                   child: Text(
@@ -146,9 +151,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ),
+
                 const SizedBox(height: 32),
 
-                // Card formulaire
                 FadeInUp(
                   delay: const Duration(milliseconds: 400),
                   child: Container(
@@ -168,9 +173,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       key: _formKey,
                       child: Column(
                         children: [
-                          // Nom
                           TextFormField(
                             controller: _nameController,
+                            textInputAction: TextInputAction.next,
                             decoration: InputDecoration(
                               labelText: 'Nom complet',
                               prefixIcon: const Icon(Icons.person_outline),
@@ -179,18 +184,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                             ),
                             validator: (value) {
-                              if (value == null || value.isEmpty) {
+                              if (value == null || value.trim().isEmpty) {
                                 return 'Veuillez entrer votre nom';
                               }
                               return null;
                             },
                           ),
+
                           const SizedBox(height: 16),
 
-                          // Email
+                          TextFormField(
+                            controller: _cinController,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.next,
+                            decoration: InputDecoration(
+                              labelText: 'CIN',
+                              prefixIcon: const Icon(Icons.badge_outlined),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Veuillez entrer votre CIN';
+                              }
+
+                              if (value.trim().length < 6) {
+                                return 'CIN invalide';
+                              }
+
+                              return null;
+                            },
+                          ),
+
+                          const SizedBox(height: 16),
+
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
                             decoration: InputDecoration(
                               labelText: 'Email',
                               prefixIcon: const Icon(Icons.email_outlined),
@@ -199,24 +231,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                             ),
                             validator: (value) {
-                              if (value == null || value.isEmpty) {
+                              if (value == null || value.trim().isEmpty) {
                                 return 'Veuillez entrer votre email';
                               }
+
                               if (!value.contains('@')) {
                                 return 'Email invalide';
                               }
+
                               return null;
                             },
                           ),
-                          const SizedBox(height: 16),
-
 
                           const SizedBox(height: 16),
 
-                          // Mot de passe
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.next,
                             decoration: InputDecoration(
                               labelText: 'Mot de passe',
                               prefixIcon: const Icon(Icons.lock_outline),
@@ -227,7 +259,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       : Icons.visibility_off_outlined,
                                 ),
                                 onPressed: () {
-                                  setState(() => _obscurePassword = !_obscurePassword);
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
                                 },
                               ),
                               border: OutlineInputBorder(
@@ -238,18 +272,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               if (value == null || value.isEmpty) {
                                 return 'Veuillez entrer un mot de passe';
                               }
+
                               if (value.length < 6) {
                                 return 'Minimum 6 caractères';
                               }
+
                               return null;
                             },
                           ),
+
                           const SizedBox(height: 16),
 
-                          // Confirmer mot de passe
                           TextFormField(
                             controller: _confirmPasswordController,
                             obscureText: _obscureConfirmPassword,
+                            textInputAction: TextInputAction.done,
                             decoration: InputDecoration(
                               labelText: 'Confirmer le mot de passe',
                               prefixIcon: const Icon(Icons.lock_outline),
@@ -260,8 +297,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       : Icons.visibility_off_outlined,
                                 ),
                                 onPressed: () {
-                                  setState(() =>
-                                  _obscureConfirmPassword = !_obscureConfirmPassword);
+                                  setState(() {
+                                    _obscureConfirmPassword =
+                                    !_obscureConfirmPassword;
+                                  });
                                 },
                               ),
                               border: OutlineInputBorder(
@@ -275,9 +314,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               return null;
                             },
                           ),
+
                           const SizedBox(height: 24),
 
-                          // Bouton inscription
                           SizedBox(
                             width: double.infinity,
                             height: 56,
@@ -311,9 +350,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 24),
 
-                // Lien connexion
                 FadeInUp(
                   delay: const Duration(milliseconds: 500),
                   child: TextButton(
@@ -339,6 +378,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _cinController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();

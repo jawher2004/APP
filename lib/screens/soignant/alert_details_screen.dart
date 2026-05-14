@@ -166,7 +166,7 @@ class _AlertDetailsScreenState extends State<AlertDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Chute détectée', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const Text('Anomalie détectée', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     Text(DateFormat('dd/MM/yyyy à HH:mm:ss').format(widget.alert.createdAt), style: TextStyle(color: Colors.grey[600], fontSize: 14)),
                   ],
                 ),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../models/bracelet_model.dart';
 
 class EditPatientProfileScreen extends StatefulWidget {
-  final BraceletModel bracelet;
+  final Map<String, dynamic> bracelet;
+
   const EditPatientProfileScreen({super.key, required this.bracelet});
 
   @override
@@ -11,52 +11,61 @@ class EditPatientProfileScreen extends StatefulWidget {
 }
 
 class _EditPatientProfileScreenState extends State<EditPatientProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
+  static const Color primaryColor = Color(0xFF1565C0); // Bleu Médical
+  static const Color dangerColor = Color(0xFFA32D2D);
+
   late TextEditingController _ageController;
+  late TextEditingController _bloodTypeController;
   late TextEditingController _conditionsController;
   late TextEditingController _medicationsController;
-  late TextEditingController _bloodTypeController;
+
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _ageController = TextEditingController(text: widget.bracelet.patientAge?.toString() ?? '');
-    _conditionsController = TextEditingController(text: widget.bracelet.medicalConditions ?? '');
-    _medicationsController = TextEditingController(text: widget.bracelet.medications ?? '');
-    _bloodTypeController = TextEditingController(text: widget.bracelet.bloodType ?? '');
+    final medical = widget.bracelet['medicalRecord'] as Map<String, dynamic>? ?? {};
+
+    _ageController = TextEditingController(text: medical['age']?.toString() ?? '');
+    _bloodTypeController = TextEditingController(text: medical['bloodType'] ?? '');
+    _conditionsController = TextEditingController(text: medical['conditions'] ?? '');
+    _medicationsController = TextEditingController(text: medical['medications'] ?? '');
+  }
+
+  @override
+  void dispose() {
+    _ageController.dispose();
+    _bloodTypeController.dispose();
+    _conditionsController.dispose();
+    _medicationsController.dispose();
+    super.dispose();
   }
 
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
+
     try {
-      await FirebaseFirestore.instance
-          .collection('bracelets')
-          .doc(widget.bracelet.id)
-          .update({
+      final braceletId = widget.bracelet['braceletId'] ?? widget.bracelet['id'];
+
+      await FirebaseFirestore.instance.collection('bracelets').doc(braceletId).update({
         'medicalRecord': {
-          'age': int.tryParse(_ageController.text) ?? 0,
+          'age': int.tryParse(_ageController.text.trim()) ?? 0,
+          'bloodType': _bloodTypeController.text.trim(),
           'conditions': _conditionsController.text.trim(),
           'medications': _medicationsController.text.trim(),
-          'bloodType': _bloodTypeController.text.trim(),
         }
-        // ✅ location supprimée — mise à jour automatique via IP du bracelet
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Dossier médical mis à jour'),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text('✅ Dossier médical mis à jour avec succès'), backgroundColor: Colors.green),
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Erreur: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Erreur lors de la sauvegarde: $e'), backgroundColor: dangerColor),
         );
       }
     } finally {
@@ -66,154 +75,156 @@ class _EditPatientProfileScreenState extends State<EditPatientProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final patientName = widget.bracelet['patientName'] ?? 'Sujet Inconnu';
+    final cinDisplay = widget.bracelet['cin'] ?? 'Non renseignée';
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4FF),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: Text('Dossier — ${widget.bracelet.patientName}'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        title: const Text('Mise à jour du dossier', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Info position automatique
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.green[200]!),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.location_on, color: Colors.green[700], size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Position détectée automatiquement via le bracelet'
-                            '${widget.bracelet.city != null ? ' · ${widget.bracelet.city}' : ''}',
-                        style: TextStyle(fontSize: 13, color: Colors.green[700]),
-                      ),
-                    ),
-                  ],
-                ),
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 🌟 EN-TÊTE PATIENT
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
-
-              const SizedBox(height: 24),
-
-              // Section médicale
-              Row(
+              child: Row(
                 children: [
-                  Icon(Icons.medical_information,
-                      color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 8),
-                  const Text('Dossier Médical',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Âge + Groupe sanguin
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _ageController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Âge',
-                        prefixIcon: const Icon(Icons.cake_outlined),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: primaryColor.withOpacity(0.1), shape: BoxShape.circle),
+                    child: const Icon(Icons.elderly, color: primaryColor, size: 30),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(
-                    child: TextFormField(
-                      controller: _bloodTypeController,
-                      decoration: InputDecoration(
-                        labelText: 'Groupe sanguin',
-                        hintText: 'ex: O+',
-                        prefixIcon: const Icon(Icons.water_drop_outlined),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(patientName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 4),
+                        Text('CIN : $cinDisplay', style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+            ),
 
-              // Pathologies
-              TextFormField(
-                controller: _conditionsController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Antécédents médicaux',
-                  hintText: 'Ex: Diabète type 2, Hypertension...',
-                  prefixIcon: const Icon(Icons.local_hospital_outlined),
-                  alignLabelWithHint: true,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(height: 16),
+            const SizedBox(height: 24),
+            const Text('Informations Biométriques', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryColor)),
+            const SizedBox(height: 12),
 
-              // Médicaments
-              TextFormField(
-                controller: _medicationsController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Médicaments en cours',
-                  hintText: 'Ex: Aspirine, Insuline...',
-                  prefixIcon: const Icon(Icons.medication_outlined),
-                  alignLabelWithHint: true,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Bouton sauvegarder
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _saveProfile,
-                  icon: _isLoading
-                      ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                  )
-                      : const Icon(Icons.save_outlined),
-                  label: Text(
-                    _isLoading ? 'Enregistrement...' : 'Enregistrer le dossier',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    controller: _ageController,
+                    label: 'Âge du patient',
+                    icon: Icons.cake,
+                    keyboardType: TextInputType.number,
                   ),
                 ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildTextField(
+                    controller: _bloodTypeController,
+                    label: 'Groupe Sanguin',
+                    icon: Icons.bloodtype,
+                    hint: 'Ex: A+, O-',
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+            const Text('Dossier Clinique', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryColor)),
+            const SizedBox(height: 12),
+
+            _buildTextField(
+              controller: _conditionsController,
+              label: 'Antécédents & Pathologies',
+              icon: Icons.history_edu,
+              maxLines: 4,
+              hint: 'Listez les pathologies majeures (Ex: Diabète type 2, Hypertension, Ostéoporose...)',
+            ),
+
+            const SizedBox(height: 16),
+
+            _buildTextField(
+              controller: _medicationsController,
+              label: 'Traitements en cours',
+              icon: Icons.medication,
+              maxLines: 4,
+              hint: 'Listez les médicaments actuels (Ex: Insuline rapide, Amlor...)',
+            ),
+
+            const SizedBox(height: 32),
+
+            // BOUTON SAUVEGARDER
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: _isLoading ? null : _saveProfile,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 2,
+                ),
+                icon: _isLoading ? const SizedBox.shrink() : const Icon(Icons.save),
+                label: _isLoading
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Enregistrer les modifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 20),
+          ],
         ),
       ),
     );
   }
 
-  @override
-  void dispose() {
-    _ageController.dispose();
-    _conditionsController.dispose();
-    _medicationsController.dispose();
-    _bloodTypeController.dispose();
-    super.dispose();
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+    String? hint,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+          prefixIcon: maxLines == 1 ? Icon(icon, color: primaryColor) : Padding(padding: const EdgeInsets.only(bottom: 50), child: Icon(icon, color: primaryColor)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          filled: true,
+          fillColor: Colors.white,
+        ),
+      ),
+    );
   }
 }

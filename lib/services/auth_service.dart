@@ -35,6 +35,7 @@ class AuthService {
     required String email,
     required String password,
     required String name,
+    required String cin,
     required UserRole role,
   }) async {
     try {
@@ -47,6 +48,7 @@ class AuthService {
         uid: credential.user!.uid,
         email: email,
         name: name,
+        cin: cin,
         role: role,
         braceletId: null,
         patientName: null,
@@ -106,7 +108,8 @@ class AuthService {
         uid: firebaseUser.uid,
         email: firebaseUser.email!,
         name: firebaseUser.displayName ?? 'Utilisateur',
-        role: UserRole.soignant, // Par défaut
+        cin: null,
+        role: UserRole.soignant,
         braceletId: null,
         patientName: null,
         createdAt: DateTime.now(),

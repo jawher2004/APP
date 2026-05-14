@@ -4,15 +4,17 @@ class UserModel {
   final String uid;
   final String email;
   final String name;
+  final String? cin;
   final UserRole role;
-  final String? braceletId;      // ID du bracelet (pour soignant)
-  final String? patientName;     // Nom du patient qui porte le bracelet
+  final String? braceletId;
+  final String? patientName;
   final DateTime createdAt;
 
   UserModel({
     required this.uid,
     required this.email,
     required this.name,
+    this.cin,
     required this.role,
     this.braceletId,
     this.patientName,
@@ -24,6 +26,7 @@ class UserModel {
       uid: uid,
       email: data['email'] ?? '',
       name: data['name'] ?? '',
+      cin: data['cin'],
       role: UserRole.values.firstWhere(
             (e) => e.toString() == 'UserRole.${data['role']}',
         orElse: () => UserRole.soignant,
@@ -40,6 +43,7 @@ class UserModel {
     return {
       'email': email,
       'name': name,
+      'cin': cin,
       'role': role.name,
       'braceletId': braceletId,
       'patientName': patientName,
@@ -47,7 +51,6 @@ class UserModel {
     };
   }
 
-  // Helper : est-ce que le soignant a un patient assigné ?
   bool get hasPatient => braceletId != null && patientName != null;
 }
 

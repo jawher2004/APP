@@ -10,6 +10,9 @@ import '../auth/login_screen.dart';
 import 'alerts_history_screen.dart';
 import 'bracelet_status_screen.dart';
 import 'profile_settings_screen.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as latlng;
+import 'patients_map_screen.dart';
 
 class SoignantDashboard extends StatefulWidget {
   final UserModel user;
@@ -137,7 +140,37 @@ class _SoignantDashboardState extends State<SoignantDashboard>
 
     return 'Localisation inconnue';
   }
+  double? _toDouble(dynamic value) {
+    if (value == null) return null;
 
+    if (value is int) return value.toDouble();
+    if (value is double) return value;
+
+    if (value is String) {
+      return double.tryParse(value);
+    }
+
+    return null;
+  }
+
+  latlng.LatLng _calculateCenter(List<latlng.LatLng> points) {
+    if (points.isEmpty) {
+      return const latlng.LatLng(36.8065, 10.1815); // Tunis par défaut
+    }
+
+    double totalLat = 0;
+    double totalLon = 0;
+
+    for (final point in points) {
+      totalLat += point.latitude;
+      totalLon += point.longitude;
+    }
+
+    return latlng.LatLng(
+      totalLat / points.length,
+      totalLon / points.length,
+    );
+  }
   String _probabilityPercent(Map<String, dynamic> data) {
     final value = data['probability'];
 
@@ -781,10 +814,16 @@ class _SoignantDashboardState extends State<SoignantDashboard>
                     delegate: SliverChildListDelegate([
                       _buildQuickStats(),
                       const SizedBox(height: 16),
+
+                      _buildPatientsMapPreview(),
+                      const SizedBox(height: 16),
+
                       _buildPatientListForAI(),
                       const SizedBox(height: 16),
+
                       _buildMenuGrid(context),
                       const SizedBox(height: 16),
+
                       _buildRecentAlerts(),
                       const SizedBox(height: 24),
                     ]),
@@ -1030,7 +1069,157 @@ class _SoignantDashboardState extends State<SoignantDashboard>
       ),
     );
   }
+  Widget _buildPatientsMapPreview() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle(Icons.map_outlined, 'Localisation des patients'),
+        const SizedBox(height: 10),
 
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('bracelets')
+              .where('ownerId', isEqualTo: widget.user.uid)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Container(
+                height: 170,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Center(
+                  child: CircularProgressIndicator(color: primaryColor),
+                ),
+              );
+            }
+
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return _emptyBox(
+                icon: Icons.map_outlined,
+                title: 'Aucune position',
+                subtitle: 'Aucun patient affecté à afficher sur la carte.',
+              );
+            }
+
+            final patientsWithPosition = snapshot.data!.docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final location = data['location'];
+
+              if (location is! Map) return false;
+
+              final lat = _toDouble(location['lat']);
+              final lon = _toDouble(location['lon'] ?? location['lng']);
+
+              if (lat == null || lon == null) return false;
+              if (lat == 0.0 && lon == 0.0) return false;
+
+              return true;
+            }).toList();
+
+            return InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PatientsMapScreen(user: widget.user),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(18),
+              child: Container(
+                height: 175,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Icon(
+                        Icons.map_outlined,
+                        color: primaryColor,
+                        size: 42,
+                      ),
+                    ),
+
+                    const SizedBox(width: 16),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Carte interactive',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '${patientsWithPosition.length} patient(s) avec position GPS',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: primaryColor,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              'Ouvrir la carte',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
   Widget _buildPatientListForAI() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
