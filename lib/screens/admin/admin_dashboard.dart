@@ -278,7 +278,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const Color(0xFF534AB7),
                 () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageUsersScreen()))),
         const SizedBox(height: 8),
-        _buildMenuCard(context, 'Parc Capteurs', 'Dossiers patients et appareils', Icons.watch_rounded,
+        _buildMenuCard(context, 'Supervision des dispositifs', 'Dossiers patients et appareils', Icons.watch_rounded,
             const Color(0xFF00796B),
                 () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AllBraceletsScreen()))),
         const SizedBox(height: 8),

@@ -1454,7 +1454,7 @@ class _SoignantDashboardState extends State<SoignantDashboard>
               children: [
                 _buildMenuCard(
                   context,
-                  'Registre',
+                  'Historiques',
                   'Anomalies',
                   Icons.history_edu_outlined,
                   Colors.blue,
@@ -1467,8 +1467,8 @@ class _SoignantDashboardState extends State<SoignantDashboard>
                 ),
                 _buildMenuCard(
                   context,
-                  'Capteurs',
-                  'Bracelets',
+                  'Dispositifs ',
+                  'Bracelets médicaux',
                   Icons.watch_outlined,
                   Colors.green,
                       () => Navigator.push(
