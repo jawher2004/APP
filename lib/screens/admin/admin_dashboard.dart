@@ -270,7 +270,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ],
         ),
         const SizedBox(height: 10),
-        _buildMenuCard(context, 'Registre', 'Historique des anomalies IA', Icons.history_edu,
+        _buildMenuCard(context, 'Registre', 'Historique des alertes', Icons.history_edu,
             const Color(0xFFA32D2D),
                 () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AllAlertsScreen()))),
         const SizedBox(height: 8),

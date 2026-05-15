@@ -110,7 +110,7 @@ class _AllAlertsScreenState extends State<AllAlertsScreen> {
                       const Divider(height: 12, thickness: 0.5),
                       _buildDetailRow(Icons.location_on, 'Localisation :', '$location$temp'),
                       const Divider(height: 12, thickness: 0.5),
-                      _buildDetailRow(Icons.analytics_outlined, 'Certitude de l\'anomalie :', '${conf.toInt()}%'),
+                      _buildDetailRow(Icons.analytics_outlined, 'Probabilité de chute :', '${conf.toInt()}%'),
 
                       const SizedBox(height: 24),
 
@@ -185,7 +185,7 @@ class _AllAlertsScreenState extends State<AllAlertsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
       appBar: AppBar(
-        title: const Text('Registre Cinématique', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Registre', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFFD32F2F),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -321,7 +321,7 @@ class _AllAlertsScreenState extends State<AllAlertsScreen> {
                                                   ),
                                                   const SizedBox(width: 4),
                                                   Text(
-                                                    isFalseAlarm ? 'Écart mineur ignoré' : 'Anomalie de mouvement',
+                                                    isFalseAlarm ? 'Écart mineur ignoré' : 'Perte d’équilibre détectée',
                                                     style: TextStyle(
                                                       fontSize: 11,
                                                       fontWeight: FontWeight.w600,
