@@ -345,7 +345,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           children: [
             const Icon(Icons.sensors, color: Color(0xFFA32D2D)),
             const SizedBox(width: 8),
-            Text('Dernières Anomalies',
+            Text('Dernières Alertes',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold, color: Colors.black87)),
           ],
@@ -371,7 +371,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         children: [
                           Icon(Icons.gpp_good_outlined, size: 40, color: Colors.green[300]),
                           const SizedBox(height: 10),
-                          const Text('Aucune anomalie critique récente',
+                          const Text('Aucune alerte récente',
                               style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
                         ],
                       )));

@@ -239,7 +239,7 @@ class _UnassignedPatientsScreenState extends State<UnassignedPatientsScreen> {
                                             Icon(Icons.warning_amber_rounded, size: 12, color: Color(0xFFE65100)),
                                             SizedBox(width: 4),
                                             Text(
-                                              'Orphelin (Attente d\'affectation)',
+                                              'Attente d\'affectation',
                                               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFE65100)),
                                             ),
                                           ],
